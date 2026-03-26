@@ -1,4 +1,7 @@
-import { useState, type FormEvent } from 'react'
+import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { Button } from '@/components/ui/button'
@@ -7,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Shield, Eye, EyeOff, AlertCircle, ArrowLeft, CheckCircle2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import axios from 'axios'
+import { useForgotPasswordMutation, useResetPasswordMutation } from '@/hooks/useAuthPassword'
 import { cn } from '@/lib/utils'
 
 type View = 'login' | 'forgot' | 'reset'
@@ -17,80 +21,116 @@ const demoRows = [
   { role: 'User', user: 'user_us_ar', pass: 'User@1234!', roleClass: 'text-role-user' },
 ] as const
 
+const loginSchema = z.object({
+  username: z.string().min(1, 'Username is required'),
+  password: z.string().min(1, 'Password is required'),
+})
+
+const forgotSchema = z.object({
+  email: z.string().min(1, 'Email is required').email('Invalid email address'),
+})
+
+const passwordRules = z
+  .string()
+  .min(8, 'At least 8 characters')
+  .regex(/[A-Z]/, 'Must contain an uppercase letter')
+  .regex(/[a-z]/, 'Must contain a lowercase letter')
+  .regex(/[0-9]/, 'Must contain a digit')
+  .regex(/[^A-Za-z0-9]/, 'Must contain a special character')
+
+const resetSchema = z
+  .object({
+    token: z.string().min(1, 'Token is required'),
+    password: passwordRules,
+    confirm: z.string().min(1, 'Please confirm your password'),
+  })
+  .refine((d) => d.password === d.confirm, {
+    message: 'Passwords do not match',
+    path: ['confirm'],
+  })
+
+type LoginValues = z.infer<typeof loginSchema>
+type ForgotValues = z.infer<typeof forgotSchema>
+type ResetValues = z.infer<typeof resetSchema>
+
 export default function LoginPage() {
   const navigate = useNavigate()
   const login = useAuthStore((s) => s.login)
   const isLoading = useAuthStore((s) => s.isLoading)
 
   const [view, setView] = useState<View>('login')
-  const [form, setForm] = useState({ username: '', password: '' })
   const [showPass, setShowPass] = useState(false)
-  const [error, setError] = useState('')
-
-  // Forgot password state
-  const [forgotEmail, setForgotEmail] = useState('')
-  const [forgotLoading, setForgotLoading] = useState(false)
+  const [loginError, setLoginError] = useState('')
   const [demoToken, setDemoToken] = useState('')
-
-  // Reset password state
-  const [resetForm, setResetForm] = useState({ token: '', password: '', confirm: '' })
   const [showResetPass, setShowResetPass] = useState(false)
-  const [resetLoading, setResetLoading] = useState(false)
   const [resetDone, setResetDone] = useState(false)
+  const forgotPasswordMutation = useForgotPasswordMutation()
+  const resetPasswordMutation = useResetPasswordMutation()
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault()
-    setError('')
-    if (!form.username.trim() || !form.password.trim()) {
-      setError('Please enter both username and password')
-      return
-    }
-    const result = await login(form.username.trim(), form.password)
+  const {
+    register: loginReg,
+    handleSubmit: loginSubmit,
+    setValue: loginSetValue,
+    formState: { errors: loginErrors },
+  } = useForm<LoginValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { username: '', password: '' },
+  })
+
+  const {
+    register: forgotReg,
+    handleSubmit: forgotSubmit,
+    formState: { errors: forgotErrors },
+  } = useForm<ForgotValues>({
+    resolver: zodResolver(forgotSchema),
+    defaultValues: { email: '' },
+  })
+
+  const {
+    register: resetReg,
+    handleSubmit: resetSubmit,
+    setValue: resetSetValue,
+    formState: { errors: resetErrors },
+  } = useForm<ResetValues>({
+    resolver: zodResolver(resetSchema),
+    defaultValues: { token: '', password: '', confirm: '' },
+  })
+
+  const handleLogin = async (data: LoginValues) => {
+    setLoginError('')
+    const result = await login(data.username.trim(), data.password)
     if (result.success) {
-      toast.success(`Welcome back!`)
+      toast.success('Welcome back!')
       const routes: Record<string, string> = { admin: '/admin', manager: '/manager', user: '/user' }
       navigate(routes[result.role] ?? '/user')
     } else {
-      setError(result.error)
+      setLoginError(result.error)
     }
   }
 
-  const handleForgot = async (e: FormEvent) => {
-    e.preventDefault()
-    if (!forgotEmail.trim()) return
-    setForgotLoading(true)
+  const handleForgot = async (data: ForgotValues) => {
     try {
-      const { data } = await axios.post('/api/auth/forgot-password', { email: forgotEmail.trim() })
-      if (data.demo_token) {
-        setDemoToken(data.demo_token)
-        setResetForm(p => ({ ...p, token: data.demo_token }))
+      const res = await forgotPasswordMutation.mutateAsync(data.email.trim())
+      if (res.demo_token) {
+        setDemoToken(res.demo_token)
+        resetSetValue('token', res.demo_token)
         toast.success('Reset token generated')
       } else {
-        toast.success(data.message)
+        toast.success(res.message)
       }
     } catch {
       toast.error('Request failed')
-    } finally {
-      setForgotLoading(false)
     }
   }
 
-  const handleReset = async (e: FormEvent) => {
-    e.preventDefault()
-    if (resetForm.password !== resetForm.confirm) {
-      toast.error('Passwords do not match')
-      return
-    }
-    setResetLoading(true)
+  const handleReset = async (data: ResetValues) => {
     try {
-      await axios.post('/api/auth/reset-password', { token: resetForm.token, new_password: resetForm.password })
+      await resetPasswordMutation.mutateAsync({ token: data.token, new_password: data.password })
       setResetDone(true)
       toast.success('Password reset! You can now sign in.')
     } catch (err: unknown) {
       const detail = axios.isAxiosError(err) ? err.response?.data?.detail : undefined
       toast.error(typeof detail === 'string' ? detail : 'Reset failed')
-    } finally {
-      setResetLoading(false)
     }
   }
 
@@ -176,18 +216,21 @@ export default function LoginPage() {
               </h2>
               <p className="mb-10 text-sm text-fg-secondary">Enter your credentials to access your dashboard</p>
 
-              <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
+              <form className="flex flex-col gap-5" onSubmit={loginSubmit(handleLogin)}>
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="login-username">Username or Email</Label>
                   <Input
                     id="login-username"
                     type="text"
                     placeholder="e.g. admin or mgr_us"
-                    value={form.username}
-                    onChange={(e) => setForm((p) => ({ ...p, username: e.target.value }))}
                     autoComplete="username"
                     autoFocus
+                    aria-invalid={!!loginErrors.username}
+                    {...loginReg('username')}
                   />
+                  {loginErrors.username && (
+                    <p className="text-xs text-semantic-danger">{loginErrors.username.message}</p>
+                  )}
                 </div>
 
                 <div className="flex flex-col gap-2">
@@ -206,9 +249,9 @@ export default function LoginPage() {
                       id="login-password"
                       type={showPass ? 'text' : 'password'}
                       placeholder="Your password"
-                      value={form.password}
-                      onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
                       autoComplete="current-password"
+                      aria-invalid={!!loginErrors.password}
+                      {...loginReg('password')}
                     />
                     <button
                       type="button"
@@ -218,12 +261,15 @@ export default function LoginPage() {
                       {showPass ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                     </button>
                   </div>
+                  {loginErrors.password && (
+                    <p className="text-xs text-semantic-danger">{loginErrors.password.message}</p>
+                  )}
                 </div>
 
-                {error ? (
+                {loginError ? (
                   <div className="animate-fade-in-hg flex items-center gap-2 rounded-md border border-semantic-danger/30 bg-semantic-danger-bg px-3.5 py-2.5">
                     <AlertCircle className="size-3.5 shrink-0 text-semantic-danger" aria-hidden />
-                    <span className="text-[13px] text-semantic-danger">{error}</span>
+                    <span className="text-[13px] text-semantic-danger">{loginError}</span>
                   </div>
                 ) : null}
 
@@ -240,11 +286,15 @@ export default function LoginPage() {
                   <div
                     key={c.role}
                     className="mb-1 flex cursor-pointer items-center justify-between rounded-md px-2.5 py-2 transition-colors duration-hg ease-hg last:mb-0 hover:bg-surface-hover"
-                    onClick={() => setForm({ username: c.user, password: c.pass })}
+                    onClick={() => {
+                      loginSetValue('username', c.user)
+                      loginSetValue('password', c.pass)
+                    }}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault()
-                        setForm({ username: c.user, password: c.pass })
+                        loginSetValue('username', c.user)
+                        loginSetValue('password', c.pass)
                       }
                     }}
                     role="button"
@@ -266,7 +316,7 @@ export default function LoginPage() {
             <>
               <button
                 type="button"
-                onClick={() => { setView('login'); setDemoToken(''); setForgotEmail('') }}
+                onClick={() => { setView('login'); setDemoToken('') }}
                 className="mb-8 flex items-center gap-1.5 text-sm text-fg-secondary hover:text-fg-primary"
               >
                 <ArrowLeft className="size-4" /> Back to sign in
@@ -278,20 +328,28 @@ export default function LoginPage() {
                 Enter your email address and we'll generate a reset token.
               </p>
 
-              <form className="flex flex-col gap-5" onSubmit={handleForgot}>
+              <form className="flex flex-col gap-5" onSubmit={forgotSubmit(handleForgot)}>
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="forgot-email">Email address</Label>
                   <Input
                     id="forgot-email"
                     type="email"
                     placeholder="you@healthguard.io"
-                    value={forgotEmail}
-                    onChange={(e) => setForgotEmail(e.target.value)}
                     autoFocus
+                    aria-invalid={!!forgotErrors.email}
+                    {...forgotReg('email')}
                   />
+                  {forgotErrors.email && (
+                    <p className="text-xs text-semantic-danger">{forgotErrors.email.message}</p>
+                  )}
                 </div>
-                <Button type="submit" size="lg" loading={forgotLoading} className="w-full">
-                  {forgotLoading ? 'Generating…' : 'Generate Reset Token'}
+                <Button
+                  type="submit"
+                  size="lg"
+                  loading={forgotPasswordMutation.isPending}
+                  className="w-full"
+                >
+                  {forgotPasswordMutation.isPending ? 'Generating…' : 'Generate Reset Token'}
                 </Button>
               </form>
 
@@ -304,7 +362,7 @@ export default function LoginPage() {
                   <Button
                     size="sm"
                     className="mt-3 w-full"
-                    onClick={() => { setResetForm(p => ({ ...p, token: demoToken })); setView('reset') }}
+                    onClick={() => { resetSetValue('token', demoToken); setView('reset') }}
                   >
                     Continue to reset password →
                   </Button>
@@ -335,21 +393,24 @@ export default function LoginPage() {
                   <CheckCircle2 className="size-12 text-semantic-success" />
                   <p className="font-display text-lg font-bold text-fg-primary">Password reset!</p>
                   <p className="text-sm text-fg-secondary">You can now sign in with your new password.</p>
-                  <Button onClick={() => { setView('login'); setResetDone(false); setResetForm({ token: '', password: '', confirm: '' }) }}>
+                  <Button onClick={() => { setView('login'); setResetDone(false) }}>
                     Go to sign in
                   </Button>
                 </div>
               ) : (
-                <form className="flex flex-col gap-5" onSubmit={handleReset}>
+                <form className="flex flex-col gap-5" onSubmit={resetSubmit(handleReset)}>
                   <div className="flex flex-col gap-2">
                     <Label htmlFor="reset-token">Reset token</Label>
                     <Input
                       id="reset-token"
                       type="text"
                       placeholder="Paste token here"
-                      value={resetForm.token}
-                      onChange={(e) => setResetForm(p => ({ ...p, token: e.target.value }))}
+                      aria-invalid={!!resetErrors.token}
+                      {...resetReg('token')}
                     />
+                    {resetErrors.token && (
+                      <p className="text-xs text-semantic-danger">{resetErrors.token.message}</p>
+                    )}
                   </div>
                   <div className="flex flex-col gap-2">
                     <Label htmlFor="reset-password">New password</Label>
@@ -358,8 +419,8 @@ export default function LoginPage() {
                         id="reset-password"
                         type={showResetPass ? 'text' : 'password'}
                         placeholder="Min 8 chars, upper, lower, digit, special"
-                        value={resetForm.password}
-                        onChange={(e) => setResetForm(p => ({ ...p, password: e.target.value }))}
+                        aria-invalid={!!resetErrors.password}
+                        {...resetReg('password')}
                       />
                       <button
                         type="button"
@@ -369,6 +430,9 @@ export default function LoginPage() {
                         {showResetPass ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                       </button>
                     </div>
+                    {resetErrors.password && (
+                      <p className="text-xs text-semantic-danger">{resetErrors.password.message}</p>
+                    )}
                   </div>
                   <div className="flex flex-col gap-2">
                     <Label htmlFor="reset-confirm">Confirm new password</Label>
@@ -376,12 +440,20 @@ export default function LoginPage() {
                       id="reset-confirm"
                       type="password"
                       placeholder="Repeat new password"
-                      value={resetForm.confirm}
-                      onChange={(e) => setResetForm(p => ({ ...p, confirm: e.target.value }))}
+                      aria-invalid={!!resetErrors.confirm}
+                      {...resetReg('confirm')}
                     />
+                    {resetErrors.confirm && (
+                      <p className="text-xs text-semantic-danger">{resetErrors.confirm.message}</p>
+                    )}
                   </div>
-                  <Button type="submit" size="lg" loading={resetLoading} className="w-full">
-                    {resetLoading ? 'Resetting…' : 'Reset Password'}
+                  <Button
+                    type="submit"
+                    size="lg"
+                    loading={resetPasswordMutation.isPending}
+                    className="w-full"
+                  >
+                    {resetPasswordMutation.isPending ? 'Resetting…' : 'Reset Password'}
                   </Button>
                 </form>
               )}
