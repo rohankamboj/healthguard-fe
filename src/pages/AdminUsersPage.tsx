@@ -166,7 +166,7 @@ function CreateUserModal({
     >
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg" showCloseButton>
         <DialogHeader>
-          <DialogTitle>Create New User</DialogTitle>
+          <DialogTitle className="text-lg font-bold">Create New User</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

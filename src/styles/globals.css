@@ -12,7 +12,7 @@
    Fonts: Syne (display) + DM Sans (body)
 */
 
-*, *::before, *::after { box-sizing: border-box; margin: 0; }
+*, *::before, *::after { box-sizing: border-box; }
 
 /* Light theme (default when `html` has no `.dark`) */
 :root {

@@ -6,14 +6,14 @@ export type Theme = 'light' | 'dark'
 const STORAGE_KEY = 'theme-store'
 
 export function readStoredTheme(): Theme {
-  if (typeof window === 'undefined') return 'dark'
+  if (typeof window === 'undefined') return 'light'
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return 'dark'
+    if (!raw) return 'light'
     const parsed = JSON.parse(raw) as { state?: { theme?: string } }
     return parsed.state?.theme === 'light' ? 'light' : 'dark'
   } catch {
-    return 'dark'
+    return 'light'
   }
 }
 

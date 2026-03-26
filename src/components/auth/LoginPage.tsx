@@ -188,7 +188,7 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {[
+        {/* {[
           { icon: '🔐', text: 'AES-256-GCM field-level encryption' },
           { icon: '🌍', text: 'Multi-location & team support' },
           { icon: '📋', text: 'Complete audit trail logging' },
@@ -198,7 +198,7 @@ export default function LoginPage() {
             <span className="text-lg">{f.icon}</span>
             <span className="text-sm text-fg-secondary">{f.text}</span>
           </div>
-        ))}
+        ))} */}
       </div>
 
       <div className="mx-auto flex w-full max-w-[480px] flex-col justify-center px-8 py-10">
@@ -220,7 +220,7 @@ export default function LoginPage() {
               </h2>
               <p className="mb-10 text-sm text-fg-secondary">Enter your credentials to access your dashboard</p>
 
-              <form className="flex flex-col gap-5" onSubmit={loginSubmit(handleLogin)}>
+              <form className="flex flex-col gap-4" onSubmit={loginSubmit(handleLogin)}>
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="login-username">Username or Email</Label>
                   <Input
@@ -282,7 +282,7 @@ export default function LoginPage() {
                 </Button>
               </form>
 
-              <div className="mt-10 rounded-lg-hg border border-line bg-surface-elevated p-5">
+              <div className="mt-4 rounded-lg-hg border border-line bg-surface-elevated p-5">
                 <p className="mb-3 text-xs font-semibold tracking-wide text-fg-muted uppercase">
                   Demo Credentials
                 </p>

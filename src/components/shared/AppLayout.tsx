@@ -75,11 +75,11 @@ function LayoutSidebar({
         )}
         {!mobile && (
           <div className="ml-auto flex shrink-0 items-center gap-1">
-            <ThemeToggle size="sm" className="border-0 bg-transparent hover:bg-surface-hover" />
             <button
               type="button"
               onClick={() => setCollapsed(!collapsed)}
               className="flex cursor-pointer rounded-md border-0 bg-transparent p-1 text-fg-muted hover:text-fg-secondary"
+              aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
               <ChevronRight
                 className={cn('size-4 transition-transform duration-250', collapsed ? 'rotate-0' : 'rotate-180')}
@@ -155,20 +155,22 @@ function LayoutSidebar({
         ))}
       </nav>
 
-      <div className="border-line border-t p-3">
-        <button
-          type="button"
-          onClick={onLogout}
-          className={cn(
-            'flex w-full cursor-pointer items-center gap-3 rounded-md border-0 bg-transparent font-body text-sm font-medium text-fg-muted transition-colors duration-hg ease-hg',
-            'hover:bg-semantic-danger-bg hover:text-semantic-danger',
-            collapsed && !mobile ? 'justify-center px-2.5 py-2.5' : 'px-3 py-2.5',
-          )}
-        >
-          <LogOut className="size-[18px] shrink-0" aria-hidden />
-          {(!collapsed || mobile) && <span>Sign out</span>}
-        </button>
-      </div>
+      {mobile && (
+        <div className="border-line border-t p-3">
+          <button
+            type="button"
+            onClick={onLogout}
+            className={cn(
+              'flex w-full cursor-pointer items-center gap-3 rounded-md border-0 bg-transparent font-body text-sm font-medium text-fg-muted transition-colors duration-hg ease-hg',
+              'hover:bg-semantic-danger-bg hover:text-semantic-danger',
+              'px-3 py-2.5',
+            )}
+          >
+            <LogOut className="size-[18px] shrink-0" aria-hidden />
+            <span>Sign out</span>
+          </button>
+        </div>
+      )}
     </aside>
   )
 }
@@ -219,11 +221,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       ) : null}
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="mobile-header flex h-14 shrink-0 items-center justify-between border-line border-b bg-surface px-5">
+        <header className="flex h-14 shrink-0 items-center justify-between border-line border-b bg-surface px-5 md:hidden">
           <button
             type="button"
             onClick={() => setMobileOpen(true)}
             className="flex cursor-pointer border-0 bg-transparent text-fg-secondary hover:text-fg-primary"
+            aria-label="Open menu"
           >
             <Menu className="size-5" aria-hidden />
           </button>
@@ -234,13 +237,27 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <ThemeToggle size="sm" className="border-line bg-surface-elevated" />
         </header>
 
+        <header className="hidden h-14 shrink-0 items-center justify-end gap-2 border-line border-b bg-surface px-5 md:flex">
+          <ThemeToggle size="sm" className="border-line bg-surface-elevated" />
+          <button
+            type="button"
+            onClick={handleLogout}
+            className={cn(
+              'flex cursor-pointer items-center gap-2 rounded-md border-0 bg-transparent px-3 py-2 font-body text-sm font-medium text-fg-muted transition-colors duration-hg ease-hg',
+              'hover:bg-semantic-danger-bg hover:text-semantic-danger',
+            )}
+          >
+            <LogOut className="size-[18px] shrink-0" aria-hidden />
+            <span>Sign out</span>
+          </button>
+        </header>
+
         <main className="flex-1 overflow-y-auto p-8">{children}</main>
       </div>
 
       <style>{`
         @media (min-width: 768px) {
           .desktop-sidebar { display: block !important; }
-          .mobile-header { display: none !important; }
         }
       `}</style>
     </div>
