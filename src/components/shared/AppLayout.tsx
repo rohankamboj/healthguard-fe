@@ -17,6 +17,7 @@ import toast from 'react-hot-toast'
 
 import { locationTextClass } from '@/lib/location-classes'
 import { cn } from '@/lib/utils'
+import { ThemeToggle } from '@/components/shared/ThemeToggle'
 
 const NAV_BY_ROLE: Record<string, { to: string; label: string; icon: typeof LayoutDashboard; end?: boolean }[]> = {
   admin: [
@@ -73,16 +74,19 @@ function LayoutSidebar({
           </span>
         )}
         {!mobile && (
-          <button
-            type="button"
-            onClick={() => setCollapsed(!collapsed)}
-            className="ml-auto flex shrink-0 cursor-pointer rounded-md border-0 bg-transparent p-1 text-fg-muted hover:text-fg-secondary"
-          >
-            <ChevronRight
-              className={cn('size-4 transition-transform duration-250', collapsed ? 'rotate-0' : 'rotate-180')}
-              aria-hidden
-            />
-          </button>
+          <div className="ml-auto flex shrink-0 items-center gap-1">
+            <ThemeToggle size="sm" className="border-0 bg-transparent hover:bg-surface-hover" />
+            <button
+              type="button"
+              onClick={() => setCollapsed(!collapsed)}
+              className="flex cursor-pointer rounded-md border-0 bg-transparent p-1 text-fg-muted hover:text-fg-secondary"
+            >
+              <ChevronRight
+                className={cn('size-4 transition-transform duration-250', collapsed ? 'rotate-0' : 'rotate-180')}
+                aria-hidden
+              />
+            </button>
+          </div>
         )}
         {mobile && (
           <button
@@ -227,7 +231,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <Shield className="size-4 text-brand-accent" aria-hidden />
             <span className="font-display text-[15px] font-bold text-fg-primary">HealthGuard</span>
           </div>
-          <div className="w-5" />
+          <ThemeToggle size="sm" className="border-line bg-surface-elevated" />
         </header>
 
         <main className="flex-1 overflow-y-auto p-8">{children}</main>

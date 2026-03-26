@@ -12,6 +12,7 @@ import toast from 'react-hot-toast'
 import axios from 'axios'
 import { useForgotPasswordMutation, useResetPasswordMutation } from '@/hooks/useAuthPassword'
 import { cn } from '@/lib/utils'
+import { ThemeToggle } from '@/components/shared/ThemeToggle'
 
 type View = 'login' | 'forgot' | 'reset'
 
@@ -136,6 +137,9 @@ export default function LoginPage() {
 
   return (
     <div className="relative flex min-h-screen overflow-hidden bg-surface-base">
+      <div className="absolute top-4 right-4 z-20 md:top-6 md:right-6">
+        <ThemeToggle />
+      </div>
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <svg
           width="100%"
