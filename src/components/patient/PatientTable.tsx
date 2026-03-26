@@ -6,7 +6,7 @@ import { EmptyState } from '@/components/shared/empty-state'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
-import { Edit2, Check, X, Trash2, Search, ChevronLeft, ChevronRight, Database, AlertCircle } from 'lucide-react'
+import { Edit2, Check, X, Trash2, Search, ChevronLeft, ChevronRight, Database, AlertCircle, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
 import type { Patient } from '@/types'
@@ -60,18 +60,38 @@ interface PatientEditPayload {
   gender: string
 }
 
+type SortKey = 'patient_id' | 'created_at' | 'updated_at'
+type SortOrder = 'asc' | 'desc'
+
+function SortIcon({ col, sortBy, sortOrder }: { col: SortKey; sortBy: SortKey; sortOrder: SortOrder }) {
+  if (sortBy !== col) return <ChevronsUpDown className="size-3 opacity-40" />
+  return sortOrder === 'asc' ? <ChevronUp className="size-3 text-brand-accent" /> : <ChevronDown className="size-3 text-brand-accent" />
+}
+
 export default function PatientTable({ refreshKey }: { refreshKey?: number }) {
   const qc = useQueryClient()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
+  const [sortBy, setSortBy] = useState<SortKey>('created_at')
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editData, setEditData] = useState<Partial<PatientEditPayload>>({})
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null)
 
+  const toggleSort = (col: SortKey) => {
+    if (sortBy === col) {
+      setSortOrder(o => o === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortBy(col)
+      setSortOrder('asc')
+    }
+    setPage(1)
+  }
+
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['patients', page, search, refreshKey],
-    queryFn: () => patientsApi.list({ page, page_size: 10, search: search || undefined }).then((r) => r.data),
+    queryKey: ['patients', page, search, sortBy, sortOrder, refreshKey],
+    queryFn: () => patientsApi.list({ page, page_size: 10, search: search || undefined, sort_by: sortBy, sort_order: sortOrder }).then((r) => r.data),
     placeholderData: (prev) => prev,
   })
 
@@ -177,8 +197,30 @@ export default function PatientTable({ refreshKey }: { refreshKey?: number }) {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'var(--font-body)' }}>
             <thead>
               <tr style={{ background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border)' }}>
-                {['Patient ID', 'First Name', 'Last Name', 'Date of Birth', 'Gender', 'Uploaded', 'Actions'].map(h => (
-                  <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>{h}</th>
+                {([
+                  { label: 'Patient ID', col: 'patient_id' as SortKey },
+                  { label: 'First Name', col: null },
+                  { label: 'Last Name', col: null },
+                  { label: 'Date of Birth', col: null },
+                  { label: 'Gender', col: null },
+                  { label: 'Uploaded', col: 'created_at' as SortKey },
+                  { label: 'Actions', col: null },
+                ]).map(({ label, col }) => (
+                  <th
+                    key={label}
+                    onClick={col ? () => toggleSort(col) : undefined}
+                    style={{
+                      padding: '11px 14px', textAlign: 'left', fontSize: 11, fontWeight: 600,
+                      color: col && sortBy === col ? 'var(--accent)' : 'var(--text-muted)',
+                      textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap',
+                      cursor: col ? 'pointer' : 'default', userSelect: 'none',
+                    }}
+                  >
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      {label}
+                      {col && <SortIcon col={col} sortBy={sortBy} sortOrder={sortOrder} />}
+                    </span>
+                  </th>
                 ))}
               </tr>
             </thead>
